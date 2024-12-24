@@ -1,7 +1,7 @@
 NAME = philosophers
-SRC = main.c philosopher.c utils.c monitor.c
-CC = gcc 
-CFLAGS = -Wall -Wextra -Werror -pthread -fsanitize=thread
+SRC = main.c philosopher.c utils.c monitor.c 
+CC = gcc # -fsanitize=thread -g3
+CFLAGS = -Wall -Wextra -Werror 
 OBJ = $(SRC:.c=.o)
 
 all: $(NAME)
@@ -10,10 +10,10 @@ $(NAME): $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -o $(NAME)
 
 clean:
-	rm -f $(OBJ)
+	rm -rf $(OBJ)
 
 fclean: clean
-	rm -f $(NAME)
+	rm -rf $(NAME)
 
 re: fclean all
 

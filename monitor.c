@@ -1,42 +1,71 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   monitor.c                                          :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: mbouras <mbouras@student.42.fr>            +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/12/24 09:52:54 by mbouras           #+#    #+#             */
+/*   Updated: 2024/12/24 16:06:56 by mbouras          ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "philosophers.h"
 
-void *monitor_routine(void *arg) {
-    t_data *data = (t_data *)arg;
-    int i;
-    int finished_philos;
+void	check_philosopher_death(t_data *data, int *finished_philos)
+{
+	int	i;
 
-    while (1) {
-        i = 0;
-        finished_philos = 0;
+	i = 0;
+	while (i < data->num_philos)
+	{
+		pthread_mutex_lock(&data->stop_lock);
+		if ((current_time() - data->philos[i].last_meal_time) > \
+			data->time_to_die)
+		{
+			print_status(&data->philos[i], "died");
+			pthread_mutex_lock(&data->print_lock);
+			data->stop_simulation = 1;
+			pthread_mutex_unlock(&data->print_lock);
+			pthread_mutex_unlock(&data->stop_lock);
+			return ;
+		}
+		if (data->meals_required > 0 && \
+			data->philos[i].meals_eaten >= data->meals_required)
+			(*finished_philos)++;
+		pthread_mutex_unlock(&data->stop_lock);
+		i++;
+	}
+}
 
-        while (i < data->num_philos) {
-            pthread_mutex_lock(&data->stop_lock);
+void	check_all_philosophers_finished(t_data *data, int finished_philos)
+{
+	if (data->meals_required > 0 && finished_philos == data->num_philos)
+	{
+		pthread_mutex_lock(&data->stop_lock);
+		pthread_mutex_lock(&data->print_lock);
+		data->stop_simulation = 1;
+		pthread_mutex_unlock(&data->print_lock);
+		pthread_mutex_unlock(&data->stop_lock);
+	}
+}
 
-            // Vérifier si un philosophe est mort
-            if ((current_time() - data->philos[i].last_meal_time) > data->time_to_die) {
-                print_status(&data->philos[i], "died");
-                data->stop_simulation = 1;
-                pthread_mutex_unlock(&data->stop_lock);
-                return NULL;
-            }
+void	*monitor_routine(void *arg)
+{
+	t_data	*data;
+	int		finished_philos;
 
-            // Compter les philosophes ayant atteint meals_required
-            if (data->meals_required > 0 && data->philos[i].meals_eaten >= data->meals_required)
-                finished_philos++;
-
-            pthread_mutex_unlock(&data->stop_lock);
-            i++;
-        }
-
-        // Arrêter si tous les philosophes ont assez mangé
-        if (data->meals_required > 0 && finished_philos == data->num_philos) {
-            pthread_mutex_lock(&data->stop_lock);
-            data->stop_simulation = 1;
-            pthread_mutex_unlock(&data->stop_lock);
-            return NULL;
-        }
-
-        usleep(2000); // Pause pour réduire la charge CPU
-    }
-    return NULL;
+	data = (t_data *)arg;
+	while (1)
+	{
+		finished_philos = 0;
+		check_philosopher_death(data, &finished_philos);
+		if (data->stop_simulation)
+			return (NULL);
+		check_all_philosophers_finished(data, finished_philos);
+		if (data->stop_simulation)
+			return (NULL);
+		usleep(2000);
+	}
+	return (NULL);
 }
